@@ -26,5 +26,5 @@ app.use("/api/inngest", serve({ client: inngest, functions }));
 
 
 app.listen(port,() => {
-    console.log(`App is listening to ${port}`)
+    console.log(`Server is listening at http://localhost:${port}`)
 })

@@ -18,10 +18,10 @@ const MyBookings = () => {
             const success = searchParams.get('success');
 
             if (success && bookingId) {
-                await fetch(`http://localhost:3000/api/bookings/verify/${bookingId}`);
+                await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/bookings/verify/${bookingId}`);
             }
 
-            const res = await fetch(`http://localhost:3000/api/bookings/user/${user?.id || 'guest'}`);
+            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/bookings/user/${user?.id || 'guest'}`);
             const data = await res.json();
             if (data.success) {
                 setBookings(data.bookings);

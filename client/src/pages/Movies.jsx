@@ -19,7 +19,7 @@ const Movies = () => {
         const fetchMovies = async () => {
             setLoading(true);
             try {
-                const res = await fetch(`http://localhost:3000/api/movies/now-playing?language=${selectedLang}`);
+                const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/movies/now-playing?language=${selectedLang}`);
                 const data = await res.json();
                 if (data.success) {
                     setMovies(data.movies);

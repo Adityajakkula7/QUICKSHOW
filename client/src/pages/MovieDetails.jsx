@@ -32,7 +32,7 @@ const MovieDetails = () => {
 
 const getShow = async () => {
     try {
-        const res = await fetch(`http://localhost:3000/api/movies/${id}`);
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/movies/${id}`);
         const data = await res.json();
         if (data.success) {
             setShow({
@@ -46,7 +46,7 @@ const getShow = async () => {
 };
     const getRelatedMovies = async () => {
         try {
-            const res = await fetch('http://localhost:3000/api/movies/now-playing');
+            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/movies/now-playing`);
             const data = await res.json();
             if (data.success) {
                 setRelatedMovies(data.movies.slice(0, 4));

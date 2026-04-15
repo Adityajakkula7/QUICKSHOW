@@ -38,7 +38,7 @@ const SeatLayout = () => {
 
 const getShow = async () => {
     try {
-        const res = await fetch(`http://localhost:3000/api/movies/${id}`);
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/movies/${id}`);
         const data = await res.json();
         if (data.success) {
             setShow({
@@ -102,7 +102,7 @@ const getShow = async () => {
     });
 
     try {
-        const res = await fetch('http://localhost:3000/api/bookings/create-checkout-session', {
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/bookings/create-checkout-session`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

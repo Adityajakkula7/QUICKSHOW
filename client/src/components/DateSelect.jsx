@@ -3,14 +3,20 @@ import Blurcircle from './Blurcircle'
 import { ChevronLeft, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { useClerk, useUser } from '@clerk/clerk-react';
 
 const DateSelect = ({dateTime, id}) => {
     const navigate = useNavigate();
     const [selected,setSelected] = useState(null);
+    const { user } = useUser();
+    const { openSignIn } = useClerk();
 
     const onBookhandler = () => {
         if(!selected){
             return toast('Please select a date');
+        }
+        if (!user) {
+            return openSignIn();
         }
         navigate(`/movies/${id}/${selected}`)
         scrollTo(0,0)

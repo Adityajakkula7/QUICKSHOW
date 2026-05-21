@@ -6,7 +6,7 @@ import isoTimeFormat from '../lib/isoTimeFormat';
 import Blurcircle from '../components/Blurcircle';
 import toast from 'react-hot-toast';
 import { assets } from '../assets/assets';
-import { useUser } from '@clerk/clerk-react';
+import { useClerk, useUser } from '@clerk/clerk-react';
 
 const SeatLayout = () => {
 
@@ -18,6 +18,7 @@ const SeatLayout = () => {
     const [show, setShow] = useState(null);
     const navigate = useNavigate()
     const { user } = useUser();
+    const { openSignIn } = useClerk();
 
    const generateDateTimes = () => {
     const dateTime = {};
@@ -88,6 +89,9 @@ const getShow = async () => {
 
 
    const handleCheckout = async () => {
+    if (!user) {
+        return openSignIn();
+    }
     if (!selectedTime) return toast('Please select a time first');
     if (selectedSeats.length === 0) return toast('Please select at least one seat');
 

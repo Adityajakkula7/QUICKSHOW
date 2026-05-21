@@ -3,14 +3,15 @@ import Loading from '../components/Loading'
 import Blurcircle from '../components/Blurcircle'
 import { dateFormat } from '../lib/dateFormat'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { useUser } from '@clerk/clerk-react';
+import { useClerk, useUser } from '@clerk/clerk-react';
 
 const MyBookings = () => {
     const [bookings, setBookings] = useState([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
-    const { user } = useUser();
+    const { user, isLoaded } = useUser();
+    const { openSignIn } = useClerk();
 
     const getMyBookings = async () => {
         try {
@@ -34,10 +35,35 @@ const MyBookings = () => {
     };
 
     useEffect(() => {
-    if (user !== undefined) {
+    if (!isLoaded) return;
+    if (user) {
         getMyBookings();
+    } else {
+        setIsLoading(false);
     }
-    }, [user]);
+    }, [user, isLoaded]);
+
+    if (!isLoaded) return <Loading />;
+
+    if (!user) {
+        return (
+            <div className='relative flex flex-col items-center justify-center px-6 md:px-16 lg:px-40 pt-30 md:pt-40 min-h-[80vh]'>
+                <Blurcircle top="100px" left="100px" />
+                <Blurcircle bottom="0px" left="600px" />
+                <div className='flex flex-col items-center gap-5 text-center'>
+                    <div className='text-6xl'>🎟️</div>
+                    <h1 className='text-2xl font-semibold'>Login to view your bookings</h1>
+                    <p className='text-gray-400 max-w-sm'>You need to be signed in to see your booking history and manage your tickets.</p>
+                    <button
+                        onClick={() => openSignIn()}
+                        className='mt-2 px-8 py-3 bg-primary hover:bg-primary-dull transition rounded-full font-medium cursor-pointer'
+                    >
+                        Sign In
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return !isLoading ? (
         <div className='relative px-6 md:px-16 lg:px-40 pt-30 md:pt-40 min-h-[80vh]'>

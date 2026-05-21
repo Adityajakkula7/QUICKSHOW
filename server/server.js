@@ -46,3 +46,5 @@ app.listen(port, () => {
 })
 
 startServer();
+
+export default app;

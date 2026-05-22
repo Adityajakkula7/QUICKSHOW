@@ -41,10 +41,12 @@ app.use('/api/shows', showRoutes);
 app.use('/api/bookings', bookingRoutes);
 
 
-app.listen(port, () => {
-    console.log(`Server is listening at http://localhost:${port}`)
-})
+// Only start HTTP server when running locally (not on Vercel serverless)
+if (!process.env.VERCEL) {
+    app.listen(port, () => {
+        console.log(`Server is listening at http://localhost:${port}`)
+    })
+    startServer();
+}
 
-startServer();
-
-export default app;
+export default app;

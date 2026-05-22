@@ -20,14 +20,17 @@ const allowedOrigins = process.env.CLIENT_URL
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(clerkMiddleware());
 
+// Ensure DB is connected before every request (cached after first connect)
+app.use(async (req, res, next) => {
+    await connectDB();
+    next();
+});
+
 // Routes
 app.get('/', (req, res) => res.send('Server is Live'));
 app.use('/api/inngest', serve({ client: inngest, functions }));
 app.use('/api/movies', movieRoutes);
 app.use('/api/shows', showRoutes);
 app.use('/api/bookings', bookingRoutes);
-
-// Connect DB (cached - won't reconnect on warm invocations)
-connectDB();
 
 export default app;

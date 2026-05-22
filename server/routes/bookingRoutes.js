@@ -3,12 +3,14 @@ import Stripe from 'stripe';
 import Booking from '../models/Booking.js';
 
 const router = express.Router();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
 
 // Create checkout session
 router.post('/create-checkout-session', async (req, res) => {
     try {
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
         const { seats, movieId, movieTitle, moviePoster, showTime, amount, userId } = req.body;
+
 
         // Save booking as unpaid first
         const booking = await Booking.create({

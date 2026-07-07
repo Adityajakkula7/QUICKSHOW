@@ -12,10 +12,13 @@ const SeatLayout = () => {
 
     const groupRows = [["A",'B'],['C','D'],['E','F'],['G','H'],['I','J']];
 
-    const {id, date} = useParams()
+        const {id, date} = useParams()
     const [selectedSeats, setSelectedSeats] = useState([]);
     const [selectedTime, setSelectedTime] = useState(null);
     const [show, setShow] = useState(null);
+    const [occupiedSeats, setOccupiedSeats] = useState([]);
+    const [lockedSeats, setLockedSeats] = useState([]);
+    const [isLoadingSeats, setIsLoadingSeats] = useState(false);
     const navigate = useNavigate()
     const { user } = useUser();
     const { openSignIn } = useClerk();
@@ -52,6 +55,30 @@ const getShow = async () => {
     }
 };
 
+const fetchSeatStatus = async (time) => {
+    if (!time) return;
+    setIsLoadingSeats(true);
+    try {
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/bookings/seats-status?movieId=${id}&showTime=${time}`);
+        const data = await res.json();
+        if (data.success) {
+            setOccupiedSeats(data.occupiedSeats || []);
+            setLockedSeats(data.lockedSeats || []);
+        }
+    } catch (error) {
+        console.error('Error fetching seat status:', error);
+    } finally {
+        setIsLoadingSeats(false);
+    }
+};
+
+useEffect(() => {
+    if (selectedTime) {
+        setSelectedSeats([]);
+        fetchSeatStatus(selectedTime.time);
+    }
+}, [selectedTime]);
+
     const handleSeatClick = (seatId) => {
         if (!selectedTime) {
             return toast("Please select time first")
@@ -69,12 +96,24 @@ const getShow = async () => {
             <div className="flex flex-wrap items-center justify-center gap-2">
                 {Array.from({ length: count }, (_, i) => {
                     const seatId = `${row}${i + 1}`;
+                    const isOccupied = occupiedSeats.includes(seatId);
+                    const isLocked = lockedSeats.includes(seatId);
+                    const isSelected = selectedSeats.includes(seatId);
                     return (
-                        <button key={seatId} onClick={() => handleSeatClick(seatId)}
-                            className={`h-8 w-8 rounded border border-primary/60 
-                            cursor-pointer text-xs ${selectedSeats.includes(seatId)
-                                ? "bg-primary text-white"
-                                : "hover:bg-primary/20"}`}>
+                        <button 
+                            key={seatId} 
+                            disabled={isOccupied || isLocked}
+                            onClick={() => handleSeatClick(seatId)}
+                            className={`h-8 w-8 rounded border text-xs cursor-pointer transition-all
+                            ${isOccupied 
+                                ? "bg-red-950/40 border-red-800/50 text-red-500/50 cursor-not-allowed" 
+                                : isLocked 
+                                ? "bg-amber-950/40 border-amber-800/50 text-amber-500/50 cursor-not-allowed" 
+                                : isSelected
+                                ? "bg-primary text-white border-primary"
+                                : "border-primary/60 hover:bg-primary/20"}`}
+                            title={isOccupied ? "Occupied" : isLocked ? "Temporarily Locked" : `Seat ${seatId}`}
+                        >
                             {seatId}
                         </button>
                     );
@@ -126,7 +165,11 @@ const getShow = async () => {
         if (data.success) {
             window.location.href = data.url;
         } else {
-            toast('Payment failed. Try again!');
+            toast(data.message || 'Payment failed. Try again!');
+            if (selectedTime) {
+                setSelectedSeats([]);
+                fetchSeatStatus(selectedTime.time);
+            }
         }
     } catch (error) {
         console.error(error);
@@ -166,6 +209,26 @@ const getShow = async () => {
                 <h1 className='text-2xl font-semibold mb-4'>Select your seat</h1>
                 <img src={assets.screenImage} alt="screen" />
                 <p className='text-gray-400 text-sm mb-6'>SCREEN SIDE</p>
+
+                {/* Seat status legend */}
+                <div className='flex flex-wrap justify-center gap-6 mb-6 text-xs text-gray-400'>
+                    <div className='flex items-center gap-2'>
+                        <div className='w-4 h-4 rounded border border-primary/60'></div>
+                        <span>Available</span>
+                    </div>
+                    <div className='flex items-center gap-2'>
+                        <div className='w-4 h-4 rounded bg-primary border border-primary'></div>
+                        <span>Selected</span>
+                    </div>
+                    <div className='flex items-center gap-2'>
+                        <div className='w-4 h-4 rounded bg-amber-950/40 border border-amber-800/50'></div>
+                        <span>Locked (10m)</span>
+                    </div>
+                    <div className='flex items-center gap-2'>
+                        <div className='w-4 h-4 rounded bg-red-950/40 border border-red-800/50'></div>
+                        <span>Booked</span>
+                    </div>
+                </div>
 
                 <div className='flex flex-col items-center mt-10 text-xs text-gray-300'>
                     <div className='grid grid-cols-2 md:grid-cols-1 gap-8 md:gap-2 mb-6'>

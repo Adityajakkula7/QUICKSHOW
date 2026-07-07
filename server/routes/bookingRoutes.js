@@ -5,12 +5,72 @@ import Booking from '../models/Booking.js';
 const router = express.Router();
 
 
+// Get occupied and locked seats for a movie and showtime
+router.get('/seats-status', async (req, res) => {
+    try {
+        const { movieId, showTime } = req.query;
+        if (!movieId || !showTime) {
+            return res.status(400).json({ success: false, message: 'Missing movieId or showTime' });
+        }
+
+        const bookings = await Booking.find({
+            movie: Number(movieId),
+            showDateTime: new Date(showTime)
+        });
+
+        const occupiedSeats = [];
+        const lockedSeats = [];
+        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+
+        bookings.forEach(booking => {
+            if (booking.isPaid) {
+                occupiedSeats.push(...booking.bookedSeats);
+            } else if (booking.createdAt > tenMinutesAgo) {
+                lockedSeats.push(...booking.bookedSeats);
+            }
+        });
+
+        res.json({
+            success: true,
+            occupiedSeats,
+            lockedSeats
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 // Create checkout session
 router.post('/create-checkout-session', async (req, res) => {
     try {
         const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
         const { seats, movieId, movieTitle, moviePoster, showTime, amount, userId } = req.body;
 
+        // Check if any of the requested seats are already booked or locked
+        const existingBookings = await Booking.find({
+            movie: Number(movieId),
+            showDateTime: new Date(showTime)
+        });
+
+        const occupiedSeats = new Set();
+        const lockedSeats = new Set();
+        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+
+        existingBookings.forEach(booking => {
+            if (booking.isPaid) {
+                booking.bookedSeats.forEach(seat => occupiedSeats.add(seat));
+            } else if (booking.createdAt > tenMinutesAgo) {
+                booking.bookedSeats.forEach(seat => lockedSeats.add(seat));
+            }
+        });
+
+        const isAnySeatUnavailable = seats.some(seat => occupiedSeats.has(seat) || lockedSeats.has(seat));
+        if (isAnySeatUnavailable) {
+            return res.status(400).json({
+                success: false,
+                message: 'One or more of the selected seats are already locked or booked. Please select other seats.'
+            });
+        }
 
         // Save booking as unpaid first
         const booking = await Booking.create({

@@ -16,6 +16,8 @@ import ListShows from './pages/admin/ListShows'
 import ListBookings from './pages/admin/ListBookings'
 import Dashboard from './pages/admin/Dashboard'
 import Transport from './pages/Transport'
+import Login from './pages/Login'
+import Register from './pages/Register'
 
 
 const App = () => {
@@ -33,6 +35,8 @@ const App = () => {
         <Route path="/my-bookings" element={<MyBookings/>}/>
         <Route path="/releases" element={<Releases/>}/>
         <Route path="/favorite" element={<Favorite/>}/>
+        <Route path="/login" element={<Login/>}/>
+        <Route path="/register" element={<Register/>}/>
         <Route path = '/admin/*' element = {<Layout/>}>
           <Route index element={<Dashboard/>} />
           <Route path="add-shows" element={<AddShows/>} />

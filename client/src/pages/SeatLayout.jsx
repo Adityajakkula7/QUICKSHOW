@@ -6,7 +6,7 @@ import isoTimeFormat from '../lib/isoTimeFormat';
 import Blurcircle from '../components/Blurcircle';
 import toast from 'react-hot-toast';
 import { assets } from '../assets/assets';
-import { useClerk, useUser } from '@clerk/clerk-react';
+import { useAuth } from '../context/AuthContext';
 
 const SeatLayout = () => {
 
@@ -20,8 +20,7 @@ const SeatLayout = () => {
     const [lockedSeats, setLockedSeats] = useState([]);
     const [isLoadingSeats, setIsLoadingSeats] = useState(false);
     const navigate = useNavigate()
-    const { user } = useUser();
-    const { openSignIn } = useClerk();
+    const { user } = useAuth();
 
    const generateDateTimes = () => {
     const dateTime = {};
@@ -129,7 +128,7 @@ useEffect(() => {
 
    const handleCheckout = async () => {
     if (!user) {
-        return openSignIn();
+        return navigate('/login');
     }
     if (!selectedTime) return toast('Please select a time first');
     if (selectedSeats.length === 0) return toast('Please select at least one seat');
@@ -141,7 +140,7 @@ useEffect(() => {
         moviePoster: show.movie.poster_path,
         showTime: selectedTime.time,
         amount: selectedSeats.length * 150,
-        userId: 'guest'
+        userId: user._id
     });
 
     try {
@@ -155,7 +154,7 @@ useEffect(() => {
                 moviePoster: show.movie.poster_path,
                 showTime: selectedTime.time,
                 amount: selectedSeats.length * 150,
-                userId: user?.id || 'guest'
+                userId: user._id
             })
         });
 

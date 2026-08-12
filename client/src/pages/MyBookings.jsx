@@ -3,15 +3,14 @@ import Loading from '../components/Loading'
 import Blurcircle from '../components/Blurcircle'
 import { dateFormat } from '../lib/dateFormat'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { useClerk, useUser } from '@clerk/clerk-react';
+import { useAuth } from '../context/AuthContext';
 
 const MyBookings = () => {
     const [bookings, setBookings] = useState([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
-    const { user, isLoaded } = useUser();
-    const { openSignIn } = useClerk();
+    const { user, isLoaded } = useAuth();
 
     const getMyBookings = async () => {
         try {
@@ -22,7 +21,7 @@ const MyBookings = () => {
                 await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/bookings/verify/${bookingId}`);
             }
 
-            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/bookings/user/${user?.id || 'guest'}`);
+            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/bookings/user/${user?._id || 'guest'}`);
             const data = await res.json();
             if (data.success) {
                 setBookings(data.bookings);
@@ -55,7 +54,7 @@ const MyBookings = () => {
                     <h1 className='text-2xl font-semibold'>Login to view your bookings</h1>
                     <p className='text-gray-400 max-w-sm'>You need to be signed in to see your booking history and manage your tickets.</p>
                     <button
-                        onClick={() => openSignIn()}
+                        onClick={() => navigate('/login')}
                         className='mt-2 px-8 py-3 bg-primary hover:bg-primary-dull transition rounded-full font-medium cursor-pointer'
                     >
                         Sign In

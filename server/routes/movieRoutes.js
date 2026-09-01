@@ -1,5 +1,6 @@
 import express from 'express';
 import axios from 'axios';
+import { getCache, setCache, CACHE_KEYS, CACHE_TTL } from '../services/cacheService.js';
 
 const router = express.Router();
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
@@ -25,11 +26,20 @@ const fetchWithRetry = async (url, params, retries = 3) => {
     }
 };
 
-// to get now playing
+// ─── GET /now-playing ─────────────────────────────────────────────────────────
+// Cached: 10 minutes. Cache key varies by language filter.
 router.get('/now-playing', async (req, res) => {
     try {
         const { language } = req.query;
+        const cacheKey = CACHE_KEYS.nowPlaying(language);
 
+        // 1. Check cache first
+        const cached = await getCache(cacheKey);
+        if (cached) {
+            return res.json({ success: true, movies: cached, fromCache: true });
+        }
+
+        // 2. Cache miss — fetch from TMDB
         const data = await fetchWithRetry(`${TMDB_BASE_URL}/movie/now_playing`, {
             api_key: API_KEY,
             language: 'en-US',
@@ -56,18 +66,36 @@ router.get('/now-playing', async (req, res) => {
             movies = movies.filter(movie => movie.original_language === language);
         }
 
-        res.json({ success: true, movies });
+        // 3. Populate cache for next request
+        await setCache(cacheKey, movies, CACHE_TTL.NOW_PLAYING);
+
+        res.json({ success: true, movies, fromCache: false });
     } catch (error) {
         console.error('TMDB Error:', error.message);
         res.status(500).json({ success: false, message: error.message });
     }
 });
 
-//To get movie detail
+// ─── GET /:id — Movie detail ───────────────────────────────────────────────────
+// Cached: 30 minutes. Movie metadata (title, cast, genres) rarely changes.
 router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
 
+        // Validate id is a numeric TMDB movie id
+        if (!/^\d+$/.test(id)) {
+            return res.status(400).json({ success: false, message: 'Invalid movie ID format' });
+        }
+
+        const cacheKey = CACHE_KEYS.movieDetail(id);
+
+        // 1. Check cache first
+        const cached = await getCache(cacheKey);
+        if (cached) {
+            return res.json({ success: true, movie: cached, fromCache: true });
+        }
+
+        // 2. Cache miss — fetch from TMDB
         const data = await fetchWithRetry(`${TMDB_BASE_URL}/movie/${id}`, {
             api_key: API_KEY,
             language: 'en-US',
@@ -96,7 +124,10 @@ router.get('/:id', async (req, res) => {
             }))
         };
 
-        res.json({ success: true, movie });
+        // 3. Populate cache
+        await setCache(cacheKey, movie, CACHE_TTL.MOVIE_DETAIL);
+
+        res.json({ success: true, movie, fromCache: false });
     } catch (error) {
         console.error('TMDB Error:', error.message);
         res.status(500).json({ success: false, message: error.message });

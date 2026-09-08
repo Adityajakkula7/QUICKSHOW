@@ -27,7 +27,6 @@
 12. [Testing](#12-testing)
 13. [Admin Dashboard](#13-admin-dashboard)
 14. [User Flows](#14-user-flows)
-15. [Interview Q&A](#15-interview-qa)
 
 ---
 
@@ -857,100 +856,6 @@ All admin pages at `/admin/*` are **static mockups** reading from `dummyDashboar
 6. Response: `{ distanceKm, durationText, fares: { auto, mini, sedan }, fareDisclaimer }`
 7. Route drawn on Leaflet map (straight line visual guide)
 8. User selects cab type → simulated booking with OTP, driver name, ETA
-
----
-
-## 15. Interview Q&A
-
-### Project Overview
-
-**Q: What is QuickShow? Give a brief overview.**
-QuickShow is a full-stack movie ticket booking web application — React 19 + Vite frontend, Express.js + MongoDB backend. Features: real-time TMDB movie listings, interactive seat selection with 10-minute locking to prevent double-booking, Stripe payments, custom JWT+bcrypt auth, Redis caching, RabbitMQ async notifications, and a backend-proxied Google Maps transport feature.
-
-**Q: What is the most important feature to understand?**
-The seat-locking and concurrency prevention mechanism. When two users try to book the same seat simultaneously, the atomic `findOneAndUpdate` with conditional query (`$exists: false` per seat) ensures only one succeeds. The losing request gets `null` back and returns 409.
-
-**Q: What are the three architectural tiers?**
-1. **Fully integrated live flows** — auth, TMDB proxy, seat locks, Stripe, Redis, RabbitMQ
-2. **Backend-proxied external APIs** — Google Maps (key hidden server-side), TMDB (key hidden server-side)
-3. **Static admin mockups** — Dashboard, AddShows, ListShows use dummy data, not wired to backend
-
-### Seat Locking & Concurrency
-
-**Q: How do you prevent double-booking?**
-Two-layer defence: (1) Check `Booking` collection for locked/occupied seats and return 409 if any conflict found. (2) `findOneAndUpdate` with `$exists: false` conditional query on the `Show` document — MongoDB's document-level atomicity guarantees only one concurrent request can set the seat keys.
-
-**Q: Why 10 minutes for lock duration?**
-Long enough for Stripe checkout (entering card, 3D Secure OTP). Short enough that abandoned locks don't block seats too long. Configurable via env variable in production.
-
-**Q: How does the lock expire? Is there a cron job?**
-No cron job needed. Expiry is computed at read-time: `const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000)`. Unpaid bookings older than this are simply ignored. Passive/lazy expiry — zero infrastructure.
-
-**Q: Why use the Booking record as a lock instead of a separate Lock collection?**
-The booking is dual-purpose: lock when `isPaid: false`, permanent ticket when `isPaid: true`. No data migration needed — a single `findByIdAndUpdate(id, {isPaid: true})` finalises it. Simpler schema, fewer collections.
-
-### Redis
-
-**Q: Why was Redis added?**
-The app fetches movie data from TMDB on every request (~200-500ms per call). Movie metadata is stable and identical for all users. Redis serves the first cached response in <5ms, reducing TMDB load and improving UX.
-
-**Q: Why is seat availability never cached?**
-If User A and User B both see "seat A1 is available" from a stale cache, both might select it and fail at checkout. Seat status must always come from the primary database — it's the single source of truth.
-
-**Q: What happens if Redis goes down?**
-`getCache()` returns `null`, `setCache()` and `deleteCache()` no-op silently. All requests fall back to direct DB/TMDB reads. Application is fully functional, just slower. `[Cache] SKIP (Redis not ready)` appears in logs.
-
-### RabbitMQ
-
-**Q: Why use a message queue for notifications?**
-Post-booking tasks (email, analytics) shouldn't block the HTTP response. If the email server is slow, the booking response would be delayed. With RabbitMQ, the booking confirms instantly; notifications happen asynchronously.
-
-**Q: What happens if RabbitMQ is unavailable?**
-`publishEvent` logs a warning and returns. The booking HTTP response is unaffected. Notifications are simply not sent for that booking. `[Queue] SKIP publish — not connected` in logs.
-
-### Authentication
-
-**Q: How are passwords stored?**
-Hashed with bcrypt — `bcrypt.genSalt(10)` + `bcrypt.hash(password, salt)`. Never stored or logged as plaintext. Verified with `bcrypt.compare()` on login.
-
-**Q: Why JWT in localStorage instead of httpOnly cookies?**
-JWT is stateless — no server-side session store needed. Easy to attach as `Authorization: Bearer` header for the decoupled frontend/backend architecture. Trade-off: XSS risk (localStorage is JavaScript-accessible). Production improvement: use httpOnly cookies with CSRF protection.
-
-### Transport / Maps
-
-**Q: Why proxy Google Maps through the backend?**
-The API key must never be exposed in frontend code — it would be visible in browser DevTools and network requests. All Maps API calls go through `mapsService.js` server-side.
-
-**Q: How is distance converted to fare?**
-`estimatedFare = baseFare + (distanceKm × perKmRate)`. Example for Mini with 8km: `40 + (8 × 14) = ₹152`. Rates are env-var configurable. Always displayed with a disclaimer: "ESTIMATE ONLY — actual fare may vary."
-
-### Scalability & Production
-
-**Q: How would you make seat locking fully atomic?**
-MongoDB transactions (`session.startTransaction()`) or a unique compound index on `{movie, showDateTime, bookedSeats}` to prevent duplicate inserts. Current approach uses document-level atomicity via `findOneAndUpdate` conditional queries, which is sufficient for this scale.
-
-**Q: How would you add real-time seat updates?**
-Integrate Socket.IO — broadcast updated seat status to all clients viewing the same show when a seat is locked/booked. For serverless, use Pusher or Ably (managed WebSocket services).
-
-**Q: What security improvements for production?**
-1. Rate limiting (`express-rate-limit`)
-2. Stripe webhook signature verification (`stripe.webhooks.constructEvent`)
-3. Input validation (`express-validator`)
-4. Admin route RBAC (role-based access)
-5. httpOnly cookies + CSRF protection
-6. Helmet.js for security headers
-7. MongoDB TTL index for expired lock cleanup
-
-**Q: How would you handle expired lock cleanup at scale?**
-MongoDB TTL index: `bookingSchema.index({createdAt: 1}, {expireAfterSeconds: 600, partialFilterExpression: {isPaid: false}})`. This auto-deletes unpaid bookings after 10 minutes without any application-level code.
-
-**Q: What design patterns are used?**
-1. **Singleton** — `db.js` (MongoDB) and `redis.js` (Redis) connection caching
-2. **Proxy** — Backend proxies TMDB and Google Maps API calls (key hidden)
-3. **Cache-Aside** — `cacheService.js` get/set/delete helpers
-4. **Pending-Lock** — Unpaid bookings as temporary seat locks
-5. **Observer / Event-Driven** — RabbitMQ publish/consume for async notifications
-6. **Strategy** — Cab fare calculation with interchangeable cab types (auto/mini/sedan)
 
 ---
 
